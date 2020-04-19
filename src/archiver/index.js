@@ -19,7 +19,9 @@ log4js.configure({
 const logger = log4js.getLogger();
 let config = JSON.parse(fs.readFileSync('config.json'));
 
-let sioClient = sio(config['notification-server']['url']);
+let sioClient = sio(config['notification-server']['baseUrl'], {
+    path: config['notification-server']['endpoint']
+});
 
 sioClient.on('connect', function () {
     logger.info('[sio] Connected to NS');
