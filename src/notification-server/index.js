@@ -27,36 +27,18 @@ const logger = log4js.getLogger();
 // Read config file
 let config = JSON.parse(fs.readFileSync('config.json'));
 
-// Setup pubsubhub options
-let pshbOptions = {
-    callbackUrl: config.callbackUrl + '/pubsubhubbub'
-};
+// Setup PSHB variables
+let callbackUrl = config['callbackUrl'] + config['pshbPath'];
+let topic = config['targetChannel'];
+let hub = config['pshbUrl'];
 
-// Create a subscriber based on options
-let pshbSubscriber = pubSubHubbub.createServer(pshbOptions),
-    topic = config.targetChannel,
-    hub = config.pshbUrl;
-
-pshbSubscriber.on('subscribe', function (data) {
-    logger.info(data.topic + ' subscribed');
+// Create PSHB subscriber
+let pubsub = pubSubHubbub.createServer({
+    callbackUrl: callbackUrl
 });
 
-pshbSubscriber.on('listen', function () {
-    pubSubSubscriber.subscribe(topic, hub, function (err) {
-        if (err) {
-            logger.error('Failed subscribing - ', err);
-        }
-    });
-});
-
-pshbSubscriber.on('feed', function (data) {
-    logger.info('We got em!');
-    logger.info(data.feed.toString());
-    logger.info('~~~~~~~~~~~~~~~~~~');
-});
-
-// Add pubsubhubbub as Express middleware..
-app.use('/pubsubhubbub', pshbSubscriber.listener());
+// Use PSHB subscriber as middleware
+app.use(config['pshbPath'], pubsub.listener());
 
 // Setup express routing
 app.get('/', (req, res) => {
@@ -77,5 +59,45 @@ io.on('connection', (socket) => {
 // Start the HTTP server
 http.listen(config.runOnPort, () => {
     logger.info('Started notification-server on %s 🙏', config.runOnPort);
-    logger.debug('Using config - %s', config);
+    logger.debug('Using config -', JSON.stringify(config, null, 4));
+    logger.info('callbackUrl - ', callbackUrl);
+    pubsub.subscribe(topic, hub);
+});
+
+pubsub.on('denied', (data) => {
+    logger.warn('[pshb] Denied - ', data);
+});
+
+pubsub.on('subscribe', (data) => {
+    logger.info('[pshb] Subscribed! - ', JSON.stringify(data, null, 4));
+});
+
+pubsub.on('unsubscribe', (data) => {
+    logger.warn('[pshb] Unsubscribe - ', data);
+});
+
+pubsub.on('error', (error) => {
+    logger.error('[pshb] Error - ', error);
+});
+
+pubsub.on('feed', (data) => {
+    logger.debug('[pshb] New Feed Item - ', data);
+    try {
+        let feed = data.feed;
+        if (feed !== undefined) {
+            // Get the feed from the update
+            let feedXml = feed.toString();
+            logger.info('[pshb-subscribe] New Feed Item - ', feedXml);
+
+            let toEmit = {
+                feedXml: feedXml,
+                timeBrodcasted: Date.now(),
+                rawFeed: data
+            };
+
+            io.sockets.emit('yt-notification', toEmit);
+        }
+    } catch (error) {
+        logger.error('Caught Error - ', error);
+    }
 });
