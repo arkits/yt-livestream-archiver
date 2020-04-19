@@ -1,0 +1,6 @@
+{
+    "notification-server": {
+        "baseUrl": "https://abc.xyz/",
+        "endpoint": "/ytla/socket.io"
+    }
+}
