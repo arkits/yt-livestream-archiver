@@ -1,0 +1,6 @@
+{
+    "runOnPort": 3000,
+    "callbackUrl": "https://abc.xyz/ytla/",
+    "targetChannel": "https://www.youtube.com/xml/feeds/videos.xml?channel_id=XXXX",
+    "pshbUrl": "http://pubsubhubbub.appspot.com/"
+}
