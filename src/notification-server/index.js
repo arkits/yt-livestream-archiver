@@ -29,7 +29,7 @@ let config = JSON.parse(fs.readFileSync('config.json'));
 
 // Setup PSHB variables
 let callbackUrl = config['callbackUrl'] + config['pshbPath'];
-let topic = config['targetChannel'];
+let topics = config['targetChannels'];
 let hub = config['pshbUrl'];
 
 // Create PSHB subscriber
@@ -61,7 +61,9 @@ http.listen(config.runOnPort, () => {
     logger.info('Started notification-server on %s 🙏', config.runOnPort);
     logger.debug('Using config -', JSON.stringify(config, null, 4));
     logger.info('callbackUrl - ', callbackUrl);
-    pubsub.subscribe(topic, hub);
+    topics.forEach((topic) => {
+        pubsub.subscribe(topic, hub);
+    });
 });
 
 pubsub.on('denied', (data) => {
