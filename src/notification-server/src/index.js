@@ -1,6 +1,7 @@
-const pubSubHubbub = require('pubsubhubbub');
-const fs = require('fs');
-const log4js = require('log4js');
+var pubSubHubbub = require('pubsubhubbub');
+var log4js = require('log4js');
+var config = require('config');
+var schedule = require('node-schedule');
 
 var app = require('express')();
 var http = require('http').createServer(app);
@@ -24,13 +25,10 @@ log4js.configure({
 // Get a logger
 const logger = log4js.getLogger();
 
-// Read config file
-let config = JSON.parse(fs.readFileSync('config.json'));
-
 // Setup PSHB variables
-let callbackUrl = config['callbackUrl'] + config['pshbPath'];
-let topics = config['targetChannels'];
-let hub = config['pshbUrl'];
+let callbackUrl = config.get('callbackUrl') + config.get('pshbPath');
+let topics = config.get('targetChannels');
+let hub = config.get('pshbUrl');
 
 // Create PSHB subscriber
 let pubsub = pubSubHubbub.createServer({
@@ -38,13 +36,17 @@ let pubsub = pubSubHubbub.createServer({
 });
 
 // Use PSHB subscriber as middleware
-app.use(config['pshbPath'], pubsub.listener());
+app.use(config.get('pshbPath'), pubsub.listener());
 
 // Setup express routing
 app.get('/', (req, res) => {
-    res.json({
+    let apiVersion = {
         name: 'arkits/notification-server'
-    });
+    };
+
+    logger.info('[api] returning - ', apiVersion);
+
+    res.json(apiVersion);
 });
 
 // Setup SIO client handling
@@ -58,14 +60,23 @@ io.on('connection', (socket) => {
 
 // Start the HTTP server
 http.listen(config.runOnPort, () => {
-    logger.info('Started notification-server on %s 🙏', config.runOnPort);
-    logger.debug('Using config -', JSON.stringify(config, null, 4));
+    logger.info('Started notification-server on %s 🙏', config.get('runOnPort'));
     logger.info('callbackUrl - ', callbackUrl);
     topics.forEach((topic) => {
         pubsub.subscribe(topic, hub);
     });
 });
 
+// schedule job to re-subscribe - invoked every 5 days
+schedule.scheduleJob('0 0 */5 * *', function () {
+    logger.info('[scheduled] Re-subscribing!');
+    topics.forEach((topic) => {
+        pubsub.subscribe(topic, hub);
+    });
+    logger.info('[scheduled] Completed Re-subscribing!');
+});
+
+// pshb event handlers
 pubsub.on('denied', (data) => {
     logger.warn('[pshb] Denied - ', data);
 });

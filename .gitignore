@@ -2,3 +2,4 @@ node_modules
 logs
 config.json
 .DS_Store
+default.json
