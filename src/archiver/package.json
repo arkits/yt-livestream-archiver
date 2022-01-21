@@ -9,7 +9,7 @@
     "dependencies": {
         "commander": "^5.1.0",
         "config": "^3.3.1",
-        "log4js": "^6.2.0",
+        "log4js": "^6.4.0",
         "puppeteer": "^3.0.2",
         "puppeteer-core": "^1.9.0",
         "shelljs": "^0.8.3",
